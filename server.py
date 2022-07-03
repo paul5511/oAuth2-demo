@@ -1,18 +1,23 @@
 from urllib.parse import urlencode, urlunsplit
-from flask import Flask, redirect, render_template, request, session
+from flask import Flask, jsonify, redirect, render_template, request, session
+from configparser import ConfigParser
 import requests, json
 
 svr = Flask(__name__)
+config_object = ConfigParser()
+config_object.read("config/auth0_personal.ini")
 
 svr.secret_key = 'BAD_SECRET_KEY'
 
-CLIENT_ID       = 'W5z7HlQslHkoQcVsKxokM1jYaijvtRfh'
-CLIENT_SECRET   = 'QeEMuF-9lYMlcKDOuKkrKGWU_gzRPYcpkoI8B0IHJKNHUHfrZ6yFTp2BN-whiPWo'
-SCOPE           = 'openid email profile'
-REDIRECT_URI    = 'http://localhost/callback'
-IDP_DOMAIN      = 'dev-siesgeoh.us.auth0.com'
-AUTHORIZE_PATH  = 'authorize'
-TOKEN_PATH      = 'oauth/token'
+CLIENT_ID       = config_object["IDP"]["CLIENT_ID"]
+CLIENT_SECRET   = config_object["IDP"]["CLIENT_SECRET"]
+SCOPE           = config_object["IDP"]["SCOPE"]
+REDIRECT_URI    = config_object["IDP"]["REDIRECT_URI"]
+IDP_DOMAIN      = config_object["IDP"]["IDP_DOMAIN"]
+AUTHORIZE_PATH  = config_object["IDP"]["AUTHORIZE_PATH"]
+LOGOUT_PATH     = config_object["IDP"]["LOGOUT_PATH"]
+TOKEN_PATH      = config_object["IDP"]["TOKEN_PATH"]
+USERINFO_PATH   = config_object["IDP"]["USERINFO_PATH"]
 
 @svr.route("/")
 def index() :
@@ -50,6 +55,7 @@ def exchange() :
     id_token = payload['id_token']
 
     session['access_token'] = access_token
+    session['id_token'] = id_token
 
     return render_template('exchange.html', access_token = access_token, id_token = id_token)
 
@@ -65,9 +71,32 @@ def login() :
     return redirect(urlunsplit(('https', IDP_DOMAIN, AUTHORIZE_PATH, urlencode(mydict), "")))
 
 
+@svr.route("/logout")
+def logout() :
+    mydict = {
+        'client_id': CLIENT_ID,
+        'returnTo': "http://localhost/"
+    }
+    session.clear()
+
+    return redirect(urlunsplit(('https', IDP_DOMAIN, LOGOUT_PATH, urlencode(mydict), "")))
+
+
 @svr.route("/userinfo")
 def userinfo() :
+    return makeSecuredAPICall(IDP_DOMAIN, USERINFO_PATH, '')
+ 
+@svr.route("/externalendpoint")
+def callExternalEndpount() :
+    
+    data = {'CLIENT_ID'          : '1234',  
+            'CLIENT_SECRET'     : 'Secret'}
 
+    r = makeSecuredAPICall('http://localhost', 'testexternal', data)
+
+
+def makeSecuredAPICall(domain, path, params) :
+    
     accessToken = session['access_token']
 
     if (accessToken == '') :
@@ -76,21 +105,15 @@ def userinfo() :
 
     header = {'Authorization' : 'Bearer {}'.format(accessToken)}
 
-    r = requests.get(urlunsplit(('https', IDP_DOMAIN, 'userinfo', '', '')), headers= header)
+    url = urlunsplit(('https', domain, path, urlencode(params), ''))
+
+    print('Making secured API call to: ' + url + ' with access token: ' + accessToken)
+
+    r = requests.get(url, headers= header)
 
     if(r.status_code != 200) :
-        return redirect('/')
+        return r.text
 
-    payload = json.loads(r.text)
+    return r.json()
 
-    print(payload)
-
-    sub = payload['sub']
-    email = payload['email']
-    nickname = payload['nickname']
-    picture = payload['picture']
-
-    return render_template('userinfo.html', sub = sub, email = email, nickname = nickname, picture = picture)
-
- 
 svr.run(debug=True, host="0.0.0.0", port=80)
