@@ -6,8 +6,10 @@
     <body>
         <h3>Access Token: </h3>
         <p>{{ access_token }}</p>
+        <p><b>Expiry: </b> {{access_token_expiry}}</p>
         <h3>ID Token: </h3>
         <p>{{ id_token }}</p>
+        <p><b>Expiry: </b>{{id_token_expiry}}</p>
     </body>
 
     <form action="/userinfo">

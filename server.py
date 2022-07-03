@@ -1,7 +1,7 @@
 from urllib.parse import urlencode, urlunsplit
 from flask import Flask, jsonify, redirect, render_template, request, session
 from configparser import ConfigParser
-import requests, json
+import requests, json, jwt, time
 
 svr = Flask(__name__)
 config_object = ConfigParser()
@@ -57,7 +57,20 @@ def exchange() :
     session['access_token'] = access_token
     session['id_token'] = id_token
 
-    return render_template('exchange.html', access_token = access_token, id_token = id_token)
+    try :
+        id_token_claims = jwt.decode(id_token, options={"verify_signature": False})
+        id_token_expiry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(id_token_claims['exp']))
+    except :
+        id_token_expiry_time = "NOT AVAILABLE"
+    
+    try :
+        access_token_claims = jwt.decode(access_token, options={"verify_signature": False})
+        access_token_expiry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(access_token_claims['exp']))
+    except :
+        access_token_expiry_time  = "NOT AVAILABLE"
+
+    id_token_expiry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(id_token_claims['exp']))
+    return render_template('exchange.html', access_token = access_token, access_token_expiry = access_token_expiry_time, id_token = id_token, id_token_expiry = id_token_expiry_time)
 
 
 @svr.route("/login")
