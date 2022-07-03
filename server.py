@@ -19,6 +19,7 @@ LOGOUT_PATH     = config_object["IDP"]["LOGOUT_PATH"]
 TOKEN_PATH      = config_object["IDP"]["TOKEN_PATH"]
 USERINFO_PATH   = config_object["IDP"]["USERINFO_PATH"]
 
+
 @svr.route("/")
 def index() :
     return render_template('index.html', clientid = CLIENT_ID, scope = SCOPE)
@@ -75,13 +76,16 @@ def exchange() :
 
 @svr.route("/login")
 def login() :
-    mydict = {
+
+    redirectParams = {
         'client_id': CLIENT_ID,
         'scope': SCOPE,
         'response_type': 'code',
         'redirect_uri': REDIRECT_URI
     }
-    return redirect(urlunsplit(('https', IDP_DOMAIN, AUTHORIZE_PATH, urlencode(mydict), "")))
+
+    redirectUrl = urlunsplit(('https', IDP_DOMAIN, AUTHORIZE_PATH, urlencode(redirectParams), ""))
+    return redirect(redirectUrl)
 
 
 @svr.route("/logout")
