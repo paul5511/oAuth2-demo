@@ -46,6 +46,7 @@ def exchange() :
     r = requests.post(urlunsplit(('https', IDP_DOMAIN, TOKEN_PATH, '', '')), data = data)
 
     if(r.status_code != 200) :
+        print(r.text)
         return redirect('/')
 
     payload = json.loads(r.text)
