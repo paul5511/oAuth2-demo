@@ -51,13 +51,19 @@ def exchange() :
 
     payload = json.loads(r.text)
 
-    print(payload)
-
     access_token = payload['access_token']
     id_token = payload['id_token']
 
     session['access_token'] = access_token
     session['id_token'] = id_token
+
+    return redirect('/displayTokens')
+
+@svr.route("/displayTokens")
+def displayTokens() :
+
+    access_token = session['access_token']
+    id_token = session['id_token']
 
     try :
         id_token_claims = jwt.decode(id_token, options={"verify_signature": False})
@@ -72,7 +78,7 @@ def exchange() :
         access_token_expiry_time  = "NOT AVAILABLE"
 
     id_token_expiry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(id_token_claims['exp']))
-    return render_template('exchange.html', access_token = access_token, access_token_expiry = access_token_expiry_time, id_token = id_token, id_token_expiry = id_token_expiry_time)
+    return render_template('displayTokens.html', access_token = access_token, access_token_expiry = access_token_expiry_time, id_token = id_token, id_token_expiry = id_token_expiry_time)
 
 
 @svr.route("/login")
