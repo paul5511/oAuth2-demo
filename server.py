@@ -19,10 +19,16 @@ LOGOUT_PATH     = config_object["IDP"]["LOGOUT_PATH"]
 TOKEN_PATH      = config_object["IDP"]["TOKEN_PATH"]
 USERINFO_PATH   = config_object["IDP"]["USERINFO_PATH"]
 
-
 @svr.route("/")
 def index() :
-    return render_template('index.html', clientid = CLIENT_ID, scope = SCOPE)
+
+    existingToken = False
+
+    if session.get("id_token") != None and session.get("access_token") != None :
+        existingToken = True
+        print("Existing Tokens exist")  
+
+    return render_template('index.html', clientid = CLIENT_ID, scope = SCOPE, existingToken = existingToken)
 
 @svr.route("/callback")
 def callback() :
