@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>My first Flask app</title>
+        <title>oAuth Demo</title>
         <link rel="stylesheet" href="/static/style.css">
     </head>
     <body>
@@ -10,12 +10,26 @@
         <h3>Scope: {{ scope }}<h3>    
     </body>
     
-    <form action="/login" >
-        <input type="submit" value="Login"/>
-    </form>
+    {% if existingToken == True %}
+        <form action="/displayTokens" >
+            <p>There is an existing session (i.e already logged in) containing tokens. Use these? </p>
+            <input type="submit" value="View existing tokens"/>
+        </form>
 
-    <!--form action="/displayTokens" >
-        <input type="submit" value="Use existing session tokens"/>
-    </form-->
+        <form action="/login" >
+            <input type="submit" value="Re-login instead"/>
+        </form>
+        <form action="/logout">
+            <input type="submit" value="Hard logout (of idp)" />
+        </form>
+    {% else  %}
+        <form action="/login" >
+            <input type="submit" value="Login"/>
+        </form>
+    {% endif %}
+    
+
+
+    
 
 </html>
