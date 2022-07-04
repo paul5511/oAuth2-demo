@@ -1,11 +1,11 @@
 from urllib.parse import urlencode, urlunsplit
-from flask import Flask, jsonify, redirect, render_template, request, session
+from flask import Flask, redirect, render_template, request, session
 from configparser import ConfigParser
 import requests, json, jwt, time
 
 svr = Flask(__name__)
 config_object = ConfigParser()
-config_object.read("config/auth0_personal.ini")
+config_object.read("config/aviation_uat.ini")
 
 svr.secret_key = 'BAD_SECRET_KEY'
 
@@ -105,11 +105,14 @@ def login() :
 def logout() :
     mydict = {
         'client_id': CLIENT_ID,
+        'id_token_hint' : session['id_token'],
         'returnTo': "http://localhost/"
     }
+
+    makeSecuredAPICall(IDP_DOMAIN, LOGOUT_PATH, mydict)
     session.clear()
 
-    return redirect(urlunsplit(('https', IDP_DOMAIN, LOGOUT_PATH, urlencode(mydict), "")))
+    return redirect("http://localhost")
 
 
 @svr.route("/userinfo")
