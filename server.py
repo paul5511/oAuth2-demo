@@ -83,7 +83,6 @@ def displayTokens() :
     except :
         access_token_expiry_time  = "NOT AVAILABLE"
 
-    id_token_expiry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(id_token_claims['exp']))
     return render_template('displayTokens.html', access_token = access_token, access_token_expiry = access_token_expiry_time, id_token = id_token, id_token_expiry = id_token_expiry_time)
 
 
