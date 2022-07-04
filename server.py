@@ -74,14 +74,16 @@ def displayTokens() :
     try :
         id_token_claims = jwt.decode(id_token, options={"verify_signature": False})
         id_token_expiry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(id_token_claims['exp']))
-    except :
+    except Exception as e:
         id_token_expiry_time = "NOT AVAILABLE"
+        print("Failed to decode JWT" + str(e))
     
     try :
         access_token_claims = jwt.decode(access_token, options={"verify_signature": False})
         access_token_expiry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(access_token_claims['exp']))
-    except :
+    except Exception as e:
         access_token_expiry_time  = "NOT AVAILABLE"
+        print("Failed to decode JWT" + str(e))
 
     return render_template('displayTokens.html', access_token = access_token, access_token_expiry = access_token_expiry_time, id_token = id_token, id_token_expiry = id_token_expiry_time)
 
