@@ -7,21 +7,30 @@
         <h3>Access Token: </h3>
         <p>{{ access_token }}</p>
         <p><b>Expiry: </b> {{access_token_expiry}}</p>
+        <hr>
         <h3>ID Token: </h3>
         <p>{{ id_token }}</p>
         <p><b>Expiry: </b>{{id_token_expiry}}</p>
+        <hr>
+        <h3>Refresh Token: </h3>
+        <p>{{ refresh_token }}</p>
+        <p><b>Expiry: </b>{{refresh_token_expiry}}</p>
+        <hr>
     </body>
 
     <form action="/userinfo">
         <input type="submit" value="Get user info" />
     </form>
 
-    <form action="/externalendpoint">
-        <input type="submit" value="Calls a secured endpoint using the access token" />
+    <form action="/contactEndpoint">
+        <input type="submit" value="Contact API GET using the access token" />
+    </form>
+    <form action="/consentEndpoint">
+        <input type="submit" value="Consent API GET using the access token" />
     </form>
 
     <form action="/logout">
-        <input type="submit" value="Logout" />
+        <input type="submit" value="Hard logout" />
     </form>
 
 </html>

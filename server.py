@@ -1,13 +1,13 @@
 from urllib.parse import urlencode, urlunsplit
-from flask import Flask, redirect, render_template, request, session
+from flask import Flask, redirect, render_template, request, session, url_for
 from configparser import ConfigParser
-import requests, json, jwt, time
+import requests, json, jwt, time, secrets
 
 svr = Flask(__name__)
 config_object = ConfigParser()
-config_object.read("config/aviation_uat.ini")
+config_object.read("config/demo_uat.ini")
 
-svr.secret_key = 'BAD_SECRET_KEY'
+svr.secret_key = secrets.token_urlsafe(16)
 
 CLIENT_ID       = config_object["IDP"]["CLIENT_ID"]
 CLIENT_SECRET   = config_object["IDP"]["CLIENT_SECRET"]
@@ -28,15 +28,16 @@ def index() :
         existingToken = True
         print("Existing Tokens exist")  
 
-    return render_template('index.html', clientid = CLIENT_ID, scope = SCOPE, existingToken = existingToken)
+    return render_template('index.html', idpdomain = IDP_DOMAIN, clientid = CLIENT_ID, scope = SCOPE, state = svr.secret_key, existingToken = existingToken)
 
 @svr.route("/callback")
 def callback() :
     code = request.args.get("code")
+    state = request.args.get("state")
 
     session['code'] = code
 
-    return render_template('callback.html', code = code)
+    return render_template('callback.html', code = code, state = state)
 
 @svr.route("/exchange")
 def exchange() :
@@ -49,27 +50,37 @@ def exchange() :
         'redirect_uri'  : REDIRECT_URI,
         'grant_type'    : 'authorization_code'}
 
-    r = requests.post(urlunsplit(('https', IDP_DOMAIN, TOKEN_PATH, '', '')), data = data)
+    url = urlunsplit(('https', IDP_DOMAIN, TOKEN_PATH, '', ''))
+
+    print(url)
+    print(data)
+    r = requests.post(url, data = data)
 
     if(r.status_code != 200) :
-        print(r.text)
-        return redirect('/')
+        return(str(r.status_code) + ' ' + r.text)
 
     payload = json.loads(r.text)
 
     access_token = payload['access_token']
     id_token = payload['id_token']
+    refresh_token = payload['refresh_token']
 
     session['access_token'] = access_token
     session['id_token'] = id_token
+    session['refresh_token'] = refresh_token
 
-    return redirect('/displayTokens')
+    return redirect(url_for('displayTokens'))
 
 @svr.route("/displayTokens")
 def displayTokens() :
 
+    if 'access_token' not in session  or 'id_token' not in session :
+        print('Token Missing. Redirecting back to start')
+        return redirect('/')
+
     access_token = session['access_token']
     id_token = session['id_token']
+    refresh_token = session['refresh_token']
 
     try :
         id_token_claims = jwt.decode(id_token, options={"verify_signature": False})
@@ -85,64 +96,95 @@ def displayTokens() :
         access_token_expiry_time  = "ERROR DECODING JWT"
         print("Failed to decode JWT" + str(e))
 
-    return render_template('displayTokens.html', access_token = access_token, access_token_expiry = access_token_expiry_time, id_token = id_token, id_token_expiry = id_token_expiry_time)
+    try :
+        refresh_token_claims = jwt.decode(refresh_token, options={"verify_signature": False})
+        refresh_token_expiry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(refresh_token_claims['exp']))
+    except Exception as e:
+        refresh_token_expiry_time  = "ERROR DECODING JWT"
+        print("Failed to decode JWT" + str(e))
+
+    return render_template('displayTokens.html', access_token = access_token, access_token_expiry = access_token_expiry_time, id_token = id_token, id_token_expiry = id_token_expiry_time, refresh_token = refresh_token, refresh_token_expiry = refresh_token_expiry_time)
 
 @svr.route("/login")
 def login() :
 
-    redirectParams = {
+    params = {
         'client_id': CLIENT_ID,
         'scope': SCOPE,
         'response_type': 'code',
-        'redirect_uri': REDIRECT_URI
+        'redirect_uri': REDIRECT_URI,
+        'state': svr.secret_key
     }
 
-    redirectUrl = urlunsplit(('https', IDP_DOMAIN, AUTHORIZE_PATH, urlencode(redirectParams), ""))
+    redirectUrl = urlunsplit(('https', IDP_DOMAIN, AUTHORIZE_PATH, urlencode(params), ""))
+    print(redirectUrl)
     return redirect(redirectUrl)
 
 
 @svr.route("/logout")
 def logout() :
-    mydict = {
+    params = {
         'client_id': CLIENT_ID,
         'id_token_hint' : session['id_token'],
-        'returnTo': "http://localhost/"
+        'returnTo': "/"
     }
 
-    makeSecuredAPICall(IDP_DOMAIN, LOGOUT_PATH, mydict)
+    makeAPICall(IDP_DOMAIN, LOGOUT_PATH, '', params)
     session.clear()
 
-    return redirect("http://localhost")
+    return redirect("/")
 
 
 @svr.route("/userinfo")
 def userinfo() :
-    return makeSecuredAPICall(IDP_DOMAIN, USERINFO_PATH, '')
- 
-@svr.route("/externalendpoint")
-def callExternalEndpount() :
-    
-    data = {'CLIENT_ID'          : '1234',  
-            'CLIENT_SECRET'     : 'Secret'}
 
-    r = makeSecuredAPICall('http://localhost', 'testexternal', data)
-
-
-def makeSecuredAPICall(domain, path, params) :
-    
     accessToken = session['access_token']
 
-    if (accessToken == '') :
-        print('ERROR: No access token in session')
-        return redirect('/')
+    if ('access_token' not in session) :
+        return 'ERROR: No access token in session'
 
-    header = {'Authorization' : 'Bearer {}'.format(accessToken)}
+    headers = {'Authorization' : 'Bearer {}'.format(accessToken)}
+    return makeAPICall(IDP_DOMAIN, USERINFO_PATH, headers, '')
+ 
+@svr.route("/contactEndpoint")
+def callContactEndpoint() :
 
+    clientid = '4f70e945043a4ccbac826a9f5c14421f'
+    clientsecret = '313Ae85ECfce4D90B821c458213Bd3FE'
+
+    return callExternalEndpoint(clientid, clientsecret, 'iecm-contactmgmt-b2c/papi/v1/contact')
+
+@svr.route("/consentEndpoint")
+def callConsentlEndpoint() :
+
+    clientid = 'f85ebef0cb60416f8283690935fa3298'
+    clientsecret = '15dcb1F727b443E7a214d95aF9abDc5F'
+
+    return callExternalEndpoint(clientid, clientsecret, 'ieeo-consentmgmt/papi/v1/consents')
+
+
+def callExternalEndpoint(clientid, clientsecret, path) :
+    accessToken = session['access_token']
+    idToken = session['id_token']
+
+    if ('id_token' not in session) :
+        return 'ERROR: No access token in session'
+
+    headers = {'Authorization' : 'Bearer {}'.format(accessToken),
+            'CLIENT_ID'         : clientid,
+            'CLIENT_SECRET'     : clientsecret
+    }
+
+    return makeAPICall('api-001-nonprod.bpglobal.com/dev', path, headers, {})   
+
+
+def makeAPICall(domain, path, headers, params) :
+    
     url = urlunsplit(('https', domain, path, urlencode(params), ''))
 
-    print('Making secured API call to: ' + url + ' with access token: ' + accessToken)
+    print('Making API call to: ' + url + ' with headers: ' + str(headers))
 
-    r = requests.get(url, headers= header)
+    r = requests.get(url, headers = headers)
 
     if(r.status_code != 200) :
         return r.text
