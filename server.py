@@ -5,7 +5,7 @@ import requests, json, jwt, time, secrets
 
 svr = Flask(__name__)
 config_object = ConfigParser()
-config_object.read("config/demo_uat.ini")
+config_object.read("./config/auth0_personal.ini")
 
 svr.secret_key = secrets.token_urlsafe(16)
 
@@ -26,7 +26,7 @@ def index() :
 
     if session.get("id_token") != None and session.get("access_token") != None :
         existingToken = True
-        print("Existing Tokens exist")  
+        print("Existing Tokens exist")
 
     return render_template('index.html', idpdomain = IDP_DOMAIN, clientid = CLIENT_ID, scope = SCOPE, state = svr.secret_key, existingToken = existingToken)
 
@@ -61,47 +61,36 @@ def exchange() :
 
     payload = json.loads(r.text)
 
-    access_token = payload['access_token']
-    id_token = payload['id_token']
-    refresh_token = payload['refresh_token']
+    if 'access_token' in payload :
+        session['access_token'] = payload['access_token']
 
-    session['access_token'] = access_token
-    session['id_token'] = id_token
-    session['refresh_token'] = refresh_token
+    if 'id_token' in payload :
+        session['id_token'] = id_token = payload['id_token']
+
+    if 'refresh_token' in payload :
+        session['refresh_token'] = payload['refresh_token']
 
     return redirect(url_for('displayTokens'))
+
+def extractTokenPlusExpiryFromSession(tokenName) :
+    if tokenName in session :
+        token = session[tokenName]
+        try :
+            token_claims = jwt.decode(token, options={"verify_signature": False})
+            token_expiry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(token_claims['exp']))
+        except Exception as e:
+            token_expiry_time  = "Unable to decode token"
+    else :
+        token = 'No token present'
+
+    return token, token_expiry_time
 
 @svr.route("/displayTokens")
 def displayTokens() :
 
-    if 'access_token' not in session  or 'id_token' not in session :
-        print('Token Missing. Redirecting back to start')
-        return redirect('/')
-
-    access_token = session['access_token']
-    id_token = session['id_token']
-    refresh_token = session['refresh_token']
-
-    try :
-        id_token_claims = jwt.decode(id_token, options={"verify_signature": False})
-        id_token_expiry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(id_token_claims['exp']))
-    except Exception as e:
-        id_token_expiry_time = "ERROR DECODING JWT"
-        print("Failed to decode JWT" + str(e))
-    
-    try :
-        access_token_claims = jwt.decode(access_token, options={"verify_signature": False})
-        access_token_expiry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(access_token_claims['exp']))
-    except Exception as e:
-        access_token_expiry_time  = "ERROR DECODING JWT"
-        print("Failed to decode JWT" + str(e))
-
-    try :
-        refresh_token_claims = jwt.decode(refresh_token, options={"verify_signature": False})
-        refresh_token_expiry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(refresh_token_claims['exp']))
-    except Exception as e:
-        refresh_token_expiry_time  = "ERROR DECODING JWT"
-        print("Failed to decode JWT" + str(e))
+    access_token, access_token_expiry_time = extractTokenPlusExpiryFromSession('access_token')
+    id_token, id_token_expiry_time = extractTokenPlusExpiryFromSession('id_token')
+    refresh_token, refresh_token_expiry_time = extractTokenPlusExpiryFromSession('refresh_token')
 
     return render_template('displayTokens.html', access_token = access_token, access_token_expiry = access_token_expiry_time, id_token = id_token, id_token_expiry = id_token_expiry_time, refresh_token = refresh_token, refresh_token_expiry = refresh_token_expiry_time)
 
