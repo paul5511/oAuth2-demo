@@ -1,7 +1,9 @@
 from urllib.parse import urlencode, urlunsplit
 from flask import Flask, redirect, render_template, request, session, url_for
 from configparser import ConfigParser
-import requests, json, jwt, time, secrets
+import requests, json, jwt, time, secrets, urllib.parse
+
+import urllib3
 
 svr = Flask(__name__)
 config_object = ConfigParser()
@@ -22,13 +24,14 @@ USERINFO_PATH   = config_object["IDP"]["USERINFO_PATH"]
 @svr.route("/")
 def index() :
 
-    existingToken = False
+    existingIdentityTokenExists = False
 
-    if session.get("id_token") != None and session.get("access_token") != None :
-        existingToken = True
-        print("Existing Tokens exist")
+    if session.get("id_token") != None :
+        existingIdentityTokenExists = True
+        
+    loginRedirectUrl =  urllib.parse.unquote_plus(createAuthorizePath())
 
-    return render_template('index.html', idpdomain = IDP_DOMAIN, clientid = CLIENT_ID, scope = SCOPE, state = svr.secret_key, existingToken = existingToken)
+    return render_template('index.html', idpdomain = IDP_DOMAIN, clientid = CLIENT_ID, scope = SCOPE, state = svr.secret_key, existingToken = existingIdentityTokenExists, loginRedirectUrl = loginRedirectUrl)
 
 @svr.route("/callback")
 def callback() :
@@ -97,6 +100,11 @@ def displayTokens() :
 @svr.route("/login")
 def login() :
 
+    redirectUrl = createAuthorizePath()
+    print(redirectUrl)
+    return redirect(redirectUrl)
+
+def createAuthorizePath() :
     params = {
         'client_id': CLIENT_ID,
         'scope': SCOPE,
@@ -105,10 +113,7 @@ def login() :
         'state': svr.secret_key
     }
 
-    redirectUrl = urlunsplit(('https', IDP_DOMAIN, AUTHORIZE_PATH, urlencode(params), ""))
-    print(redirectUrl)
-    return redirect(redirectUrl)
-
+    return urlunsplit(('https', IDP_DOMAIN, AUTHORIZE_PATH, urlencode(params), ""))
 
 @svr.route("/logout")
 def logout() :

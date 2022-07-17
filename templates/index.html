@@ -13,11 +13,12 @@
     </body>
     
     {% if existingToken == True %}
+        <hr>
         <form action="/displayTokens" >
-            <p>There is an existing session containing tokens (i.e. you are already logged in). </p>
-            <input type="submit" value="View existing tokens"/>
+            <p>The session already contains an identity token (i.e. you are already logged in). </p>
+            <input type="submit" value="View"/>
         </form>
-
+        <hr>
         <form action="/login" >
             <input type="submit" value="Re-login instead"/>
         </form>
@@ -30,8 +31,8 @@
         </form>
     {% endif %}
     
+    <hr>
+    <p>Login will redirect to: {{ loginRedirectUrl }}</p>
 
-
-    
 
 </html>
