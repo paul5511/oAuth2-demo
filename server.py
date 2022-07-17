@@ -55,8 +55,6 @@ def exchange() :
 
     url = urlunsplit(('https', IDP_DOMAIN, TOKEN_PATH, '', ''))
 
-    print(url)
-    print(data)
     r = requests.post(url, data = data)
 
     if(r.status_code != 200) :
@@ -85,6 +83,7 @@ def extractTokenPlusExpiryFromSession(tokenName) :
             token_expiry_time  = "Unable to decode token"
     else :
         token = 'No token present'
+        token_expiry_time = ''
 
     return token, token_expiry_time
 
@@ -127,6 +126,38 @@ def logout() :
     session.clear()
 
     return redirect("/")
+
+
+@svr.route("/refresh")
+def refresh() :
+
+    refresh_token = session['refresh_token']
+
+    data = {'refresh_token'      : refresh_token,  
+        'client_id'     : CLIENT_ID,
+        'client_secret' : CLIENT_SECRET,
+        'redirect_uri'  : REDIRECT_URI,
+        'grant_type'    : 'refresh_token'}
+
+    url = urlunsplit(('https', IDP_DOMAIN, TOKEN_PATH, '', ''))
+
+    r = requests.post(url, data = data)
+
+    if(r.status_code != 200) :
+        return(str(r.status_code) + ' ' + r.text)
+
+    payload = json.loads(r.text)
+
+    if 'access_token' in payload :
+        session['access_token'] = payload['access_token']
+
+    if 'id_token' in payload :
+        session['id_token'] = id_token = payload['id_token']
+
+    if 'refresh_token' in payload :
+        session['refresh_token'] = payload['refresh_token']
+
+    return redirect(url_for('displayTokens'))
 
 
 @svr.route("/userinfo")
