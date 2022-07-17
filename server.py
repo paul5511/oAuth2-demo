@@ -3,8 +3,6 @@ from flask import Flask, redirect, render_template, request, session, url_for
 from configparser import ConfigParser
 import requests, json, jwt, time, secrets, urllib.parse
 
-import urllib3
-
 svr = Flask(__name__)
 config_object = ConfigParser()
 config_object.read("./config/auth0_personal.ini")
@@ -23,7 +21,6 @@ USERINFO_PATH   = config_object["IDP"]["USERINFO_PATH"]
 
 @svr.route("/")
 def index() :
-
     existingIdentityTokenExists = False
 
     if session.get("id_token") != None :
@@ -44,34 +41,7 @@ def callback() :
 
 @svr.route("/exchange")
 def exchange() :
-
-    code = session['code']
-
-    data = {'code'      : code,  
-        'client_id'     : CLIENT_ID,
-        'client_secret' : CLIENT_SECRET,
-        'redirect_uri'  : REDIRECT_URI,
-        'grant_type'    : 'authorization_code'}
-
-    url = urlunsplit(('https', IDP_DOMAIN, TOKEN_PATH, '', ''))
-
-    r = requests.post(url, data = data)
-
-    if(r.status_code != 200) :
-        return(str(r.status_code) + ' ' + r.text)
-
-    payload = json.loads(r.text)
-
-    if 'access_token' in payload :
-        session['access_token'] = payload['access_token']
-
-    if 'id_token' in payload :
-        session['id_token'] = id_token = payload['id_token']
-
-    if 'refresh_token' in payload :
-        session['refresh_token'] = payload['refresh_token']
-
-    return redirect(url_for('displayTokens'))
+    return callTokenEndpoint('authorization_code')
 
 def extractTokenPlusExpiryFromSession(tokenName) :
     if tokenName in session :
@@ -80,7 +50,7 @@ def extractTokenPlusExpiryFromSession(tokenName) :
             token_claims = jwt.decode(token, options={"verify_signature": False})
             token_expiry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(token_claims['exp']))
         except Exception as e:
-            token_expiry_time  = "Unable to decode token"
+            token_expiry_time  = "Unable to decode token. Not a JWT?"
     else :
         token = 'No token present'
         token_expiry_time = ''
@@ -89,7 +59,6 @@ def extractTokenPlusExpiryFromSession(tokenName) :
 
 @svr.route("/displayTokens")
 def displayTokens() :
-
     access_token, access_token_expiry_time = extractTokenPlusExpiryFromSession('access_token')
     id_token, id_token_expiry_time = extractTokenPlusExpiryFromSession('id_token')
     refresh_token, refresh_token_expiry_time = extractTokenPlusExpiryFromSession('refresh_token')
@@ -98,21 +67,9 @@ def displayTokens() :
 
 @svr.route("/login")
 def login() :
-
     redirectUrl = createAuthorizePath()
     print(redirectUrl)
     return redirect(redirectUrl)
-
-def createAuthorizePath() :
-    params = {
-        'client_id': CLIENT_ID,
-        'scope': SCOPE,
-        'response_type': 'code',
-        'redirect_uri': REDIRECT_URI,
-        'state': svr.secret_key
-    }
-
-    return urlunsplit(('https', IDP_DOMAIN, AUTHORIZE_PATH, urlencode(params), ""))
 
 @svr.route("/logout")
 def logout() :
@@ -122,54 +79,23 @@ def logout() :
         'returnTo': "/"
     }
 
-    makeAPICall(IDP_DOMAIN, LOGOUT_PATH, '', params)
+    makeGETCall(IDP_DOMAIN, LOGOUT_PATH, '', params)
     session.clear()
-
     return redirect("/")
-
 
 @svr.route("/refresh")
 def refresh() :
-
-    refresh_token = session['refresh_token']
-
-    data = {'refresh_token'      : refresh_token,  
-        'client_id'     : CLIENT_ID,
-        'client_secret' : CLIENT_SECRET,
-        'redirect_uri'  : REDIRECT_URI,
-        'grant_type'    : 'refresh_token'}
-
-    url = urlunsplit(('https', IDP_DOMAIN, TOKEN_PATH, '', ''))
-
-    r = requests.post(url, data = data)
-
-    if(r.status_code != 200) :
-        return(str(r.status_code) + ' ' + r.text)
-
-    payload = json.loads(r.text)
-
-    if 'access_token' in payload :
-        session['access_token'] = payload['access_token']
-
-    if 'id_token' in payload :
-        session['id_token'] = id_token = payload['id_token']
-
-    if 'refresh_token' in payload :
-        session['refresh_token'] = payload['refresh_token']
-
-    return redirect(url_for('displayTokens'))
-
+    return callTokenEndpoint('refresh_token')
 
 @svr.route("/userinfo")
 def userinfo() :
-
     accessToken = session['access_token']
 
     if ('access_token' not in session) :
         return 'ERROR: No access token in session'
 
     headers = {'Authorization' : 'Bearer {}'.format(accessToken)}
-    return makeAPICall(IDP_DOMAIN, USERINFO_PATH, headers, '')
+    return makeGETCall(IDP_DOMAIN, USERINFO_PATH, headers, '')
  
 @svr.route("/contactEndpoint")
 def callContactEndpoint() :
@@ -187,26 +113,22 @@ def callConsentlEndpoint() :
 
     return callExternalEndpoint(clientid, clientsecret, 'ieeo-consentmgmt/papi/v1/consents')
 
-
 def callExternalEndpoint(clientid, clientsecret, path) :
-    accessToken = session['access_token']
-    idToken = session['id_token']
-
-    if ('id_token' not in session) :
+    
+    if ('access_token' not in session) :
         return 'ERROR: No access token in session'
 
+    accessToken = session['access_token']
+    
     headers = {'Authorization' : 'Bearer {}'.format(accessToken),
             'CLIENT_ID'         : clientid,
             'CLIENT_SECRET'     : clientsecret
     }
+    return makeGETCall('api-001-nonprod.bpglobal.com/dev', path, headers, {})   
 
-    return makeAPICall('api-001-nonprod.bpglobal.com/dev', path, headers, {})   
-
-
-def makeAPICall(domain, path, headers, params) :
+def makeGETCall(domain, path, headers, params) :
     
     url = urlunsplit(('https', domain, path, urlencode(params), ''))
-
     print('Making API call to: ' + url + ' with headers: ' + str(headers))
 
     r = requests.get(url, headers = headers)
@@ -215,5 +137,49 @@ def makeAPICall(domain, path, headers, params) :
         return r.text
 
     return r.json()
+
+def createAuthorizePath() :
+    params = {
+        'client_id': CLIENT_ID,
+        'scope': SCOPE,
+        'response_type': 'code',
+        'redirect_uri': REDIRECT_URI,
+        'state': svr.secret_key
+    }
+    return urlunsplit(('https', IDP_DOMAIN, AUTHORIZE_PATH, urlencode(params), ""))
+
+def callTokenEndpoint(grant_type) :
+    if(grant_type == 'authorization_code') :
+        data = {'code'      : session['code'],  
+        'client_id'     : CLIENT_ID,
+        'client_secret' : CLIENT_SECRET,
+        'redirect_uri'  : REDIRECT_URI,
+        'grant_type'    : 'authorization_code'}
+    if(grant_type == 'refresh_token') :
+        data = {'refresh_token' : session['refresh_token'],  
+            'client_id'     : CLIENT_ID,
+            'client_secret' : CLIENT_SECRET,
+            'redirect_uri'  : REDIRECT_URI,
+            'grant_type'    : 'refresh_token'}
+
+    url = urlunsplit(('https', IDP_DOMAIN, TOKEN_PATH, '', ''))
+
+    r = requests.post(url, data = data)
+
+    if(r.status_code != 200) :
+        return(str(r.status_code) + ' ' + r.text)
+
+    payload = json.loads(r.text)
+
+    if 'access_token' in payload :
+        session['access_token'] = payload['access_token']
+
+    if 'id_token' in payload :
+        session['id_token'] = id_token = payload['id_token']
+
+    if 'refresh_token' in payload :
+        session['refresh_token'] = payload['refresh_token']
+
+    return redirect(url_for('displayTokens'))
 
 svr.run(debug=True, host="0.0.0.0", port=80)

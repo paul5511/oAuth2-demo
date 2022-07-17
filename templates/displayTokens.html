@@ -5,36 +5,59 @@
     </head>
     <body>
         <h3>Access Token: </h3>
-        <p>{{ access_token }}</p>
+        <p id="access_token">{{ access_token }}</p>
         <p><b>Expiry: </b> {{access_token_expiry}}</p>
         <hr>
         <h3>ID Token: </h3>
-        <p>{{ id_token }}</p>
+        <p id="id_token">{{ id_token }}</p>
         <p><b>Expiry: </b>{{id_token_expiry}}</p>
         <hr>
         <h3>Refresh Token: </h3>
-        <p>{{ refresh_token }}</p>
+        <p id="refresh_token">{{ refresh_token }}</p>
         <p><b>Expiry: </b>{{refresh_token_expiry}}</p>
         <hr>
     </body>
 
     <form action="/userinfo">
-        <input type="submit" value="Get user info" />
+        <input type="submit" value="Get user info" id='userinfo'/>
     </form>
-
+    
     <form action="/contactEndpoint">
-        <input type="submit" value="Contact API GET using the access token" />
+        <input type="submit" value="Contact API GET using the access token" id='contact'/>
     </form>
     <form action="/consentEndpoint">
-        <input type="submit" value="Consent API GET using the access token" />
+        <input type="submit" value="Consent API GET using the access token" id='consent'/>
     </form>
 
     <form action="/refresh">
-        <input type="submit" value="Refresh tokens" />
+        <input type="submit" value="Refresh tokens" id='refresh'/>
     </form>
 
     <form action="/logout">
-        <input type="submit" value="Hard logout" />
+        <input type="submit" value="Hard logout" id='logout'/>
     </form>
+
+    <script>
+        var idTokenText = document.getElementById("id_token").innerText
+        var accessTokenText = document.getElementById("access_token").innerText
+        var refreshTokenText = document.getElementById("refresh_token").innerText
+
+        var noTokenText = "No token present"
+
+        if(accessTokenText == noTokenText) {
+            document.getElementById("userinfo").disabled = true;
+            document.getElementById("contact").disabled = true;
+            document.getElementById("consent").disabled = true;
+        }
+
+        if(refreshTokenText == noTokenText) {
+            document.getElementById("refresh").disabled = true;
+        }
+
+        if(idTokenText == noTokenText) {
+            document.getElementById("logout").disabled = true;
+        }
+
+    </script>
 
 </html>
