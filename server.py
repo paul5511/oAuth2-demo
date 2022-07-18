@@ -5,7 +5,7 @@ import requests, json, jwt, time, secrets, urllib.parse
 
 svr = Flask(__name__)
 config_object = ConfigParser()
-config_object.read("./config/auth0_personal.ini")
+config_object.read("./config/demo_uat_2.ini")
 
 svr.secret_key = secrets.token_urlsafe(16)
 
@@ -18,6 +18,14 @@ AUTHORIZE_PATH  = config_object["IDP"]["AUTHORIZE_PATH"]
 LOGOUT_PATH     = config_object["IDP"]["LOGOUT_PATH"]
 TOKEN_PATH      = config_object["IDP"]["TOKEN_PATH"]
 USERINFO_PATH   = config_object["IDP"]["USERINFO_PATH"]
+
+API_DOMAIN          = config_object["API"]["DOMAIN"]
+CONTACT_PATH        = config_object["API"]["CONTACT_PATH"]
+CONTACT_CLIENT_ID   = config_object["API"]["CONTACT_CLIENT_ID"]
+CONTACT_SECRET     = config_object["API"]["CONTACT_SECRET"]
+CONSENT_PATH        = config_object["API"]["CONSENT_PATH"]
+CONSENT_CLIENT_ID   = config_object["API"]["CONSENT_CLIENT_ID"]
+CONSENT_SECRET     = config_object["API"]["CONSENT_SECRET"]
 
 @svr.route("/")
 def index() :
@@ -99,19 +107,11 @@ def userinfo() :
  
 @svr.route("/contactEndpoint")
 def callContactEndpoint() :
-
-    clientid = '4f70e945043a4ccbac826a9f5c14421f'
-    clientsecret = '313Ae85ECfce4D90B821c458213Bd3FE'
-
-    return callExternalEndpoint(clientid, clientsecret, 'iecm-contactmgmt-b2c/papi/v1/contact')
+    return callExternalEndpoint(CONTACT_CLIENT_ID, CONTACT_SECRET, CONTACT_PATH)
 
 @svr.route("/consentEndpoint")
 def callConsentlEndpoint() :
-
-    clientid = 'f85ebef0cb60416f8283690935fa3298'
-    clientsecret = '15dcb1F727b443E7a214d95aF9abDc5F'
-
-    return callExternalEndpoint(clientid, clientsecret, 'ieeo-consentmgmt/papi/v1/consents')
+    return callExternalEndpoint(CONSENT_CLIENT_ID, CONSENT_SECRET, CONSENT_PATH)
 
 def callExternalEndpoint(clientid, clientsecret, path) :
     
@@ -124,7 +124,7 @@ def callExternalEndpoint(clientid, clientsecret, path) :
             'CLIENT_ID'         : clientid,
             'CLIENT_SECRET'     : clientsecret
     }
-    return makeGETCall('api-001-nonprod.bpglobal.com/dev', path, headers, {})   
+    return makeGETCall(API_DOMAIN, path, headers, {})   
 
 def makeGETCall(domain, path, headers, params) :
     
