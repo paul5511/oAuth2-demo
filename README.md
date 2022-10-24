@@ -1,6 +1,6 @@
 # login-demo
 
-This app requires the following modules to be installed:
+This app requires the following modules:
 
 -- Flask
 -- pkce
