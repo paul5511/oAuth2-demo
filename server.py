@@ -5,7 +5,7 @@ import requests, json, jwt, time, secrets, urllib.parse, pkce
 
 svr = Flask(__name__)
 config_object = ConfigParser()
-config_object.read("config/tc_stage.ini")
+config_object.read("config/auth0_personal.ini")
 
 svr.secret_key = secrets.token_urlsafe(16)
 
@@ -19,13 +19,13 @@ LOGOUT_PATH     = config_object["IDP"]["LOGOUT_PATH"]
 TOKEN_PATH      = config_object["IDP"]["TOKEN_PATH"]
 USERINFO_PATH   = config_object["IDP"]["USERINFO_PATH"]
 
-API_DOMAIN          = config_object["API"]["DOMAIN"]
-CONTACT_PATH        = config_object["API"]["CONTACT_PATH"]
-CONTACT_CLIENT_ID   = config_object["API"]["CONTACT_CLIENT_ID"]
-CONTACT_SECRET      = config_object["API"]["CONTACT_SECRET"]
-CONSENT_PATH        = config_object["API"]["CONSENT_PATH"]
-CONSENT_CLIENT_ID   = config_object["API"]["CONSENT_CLIENT_ID"]
-CONSENT_SECRET      = config_object["API"]["CONSENT_SECRET"]
+API_DOMAIN        = config_object["API"]["DOMAIN"]
+API_1_PATH        = config_object["API"]["API_1_PATH"]
+API_1_CLIENT_ID   = config_object["API"]["API_1_CLIENT_ID"]
+API_1_SECRET      = config_object["API"]["API_1_SECRET"]
+API_2_PATH        = config_object["API"]["API_2_PATH"]
+API_2_CLIENT_ID   = config_object["API"]["API_2_CLIENT_ID"]
+API_2_SECRET      = config_object["API"]["API_2_SECRET"]
 
 @svr.route("/")
 def index() :
@@ -37,29 +37,6 @@ def index() :
     loginRedirectUrl =  urllib.parse.unquote_plus(createAuthorizePath())
 
     return render_template('index.html', idpdomain = IDP_DOMAIN, clientid = CLIENT_ID, scope = SCOPE, state = svr.secret_key, existingToken = existingIdentityTokenExists, loginRedirectUrl = loginRedirectUrl)
-
-@svr.route("/callback")
-def callback() :
-
-    code = request.args.get("code")
-    state = request.args.get("state")
-
-    session['code'] = code
-
-    return render_template('callback.html', code = code, state = state)
-
-@svr.route("/exchange")
-def exchange() :
-    return callTokenEndpoint('authorization_code')
-
-
-@svr.route("/displayTokens")
-def displayTokens() :
-    access_token, access_token_expiry_time = extractTokenAndExpiryFromSession('access_token')
-    id_token, id_token_expiry_time = extractTokenAndExpiryFromSession('id_token')
-    refresh_token, refresh_token_expiry_time = extractTokenAndExpiryFromSession('refresh_token')
-
-    return render_template('displayTokens.html', access_token = access_token, access_token_expiry = access_token_expiry_time, id_token = id_token, id_token_expiry = id_token_expiry_time, refresh_token = refresh_token, refresh_token_expiry = refresh_token_expiry_time)
 
 @svr.route("/login")
 def login() :
@@ -75,9 +52,41 @@ def logout() :
         'returnTo': "/"
     }
 
-    makeGETCall(IDP_DOMAIN, LOGOUT_PATH, '', params)
+    performGET(IDP_DOMAIN, LOGOUT_PATH, '', params)
     session.clear()
     return redirect("/")
+
+@svr.route("/callback")
+def callback() :
+
+    code = request.args.get("code")
+    state = request.args.get("state")
+
+    # Storing the auth code in the session for convenience so we can easily retrieve it
+    # later when we exchange for token. This is probably not a good idea, however
+    # in "real life" this would not be necessary as would exchange the code for a token in
+    # one step.
+    session['code'] = code
+
+    return render_template('callback.html', code = code, state = state)
+
+@svr.route("/exchange")
+def exchangeCodeForToken() :
+    return callTokenEndpoint('authorization_code')
+
+@svr.route("/displayTokens")
+def displayTokens() :
+    access_token, access_token_expiry_time = getTokenAndExpiryFromToken('access_token')
+    id_token, id_token_expiry_time = getTokenAndExpiryFromToken('id_token')
+    refresh_token, refresh_token_expiry_time = getTokenAndExpiryFromToken('refresh_token')
+
+    return render_template('displayTokens.html',
+        access_token = access_token,
+        access_token_expiry = access_token_expiry_time,
+        id_token = id_token,
+        id_token_expiry = id_token_expiry_time,
+        refresh_token = refresh_token,
+        refresh_token_expiry = refresh_token_expiry_time)
 
 @svr.route("/refresh")
 def refresh() :
@@ -91,17 +100,17 @@ def userinfo() :
         return 'ERROR: No access token in session'
 
     headers = {'Authorization' : 'Bearer {}'.format(accessToken)}
-    return makeGETCall(IDP_DOMAIN, USERINFO_PATH, headers, '')
+    return performGET(IDP_DOMAIN, USERINFO_PATH, headers, '')
  
-@svr.route("/contactEndpoint")
+@svr.route("/api-1")
 def callContactEndpoint() :
-    return callExternalEndpoint(CONTACT_CLIENT_ID, CONTACT_SECRET, CONTACT_PATH)
+    return callExternalEndpoint(API_1_CLIENT_ID, API_1_SECRET, API_1_PATH)
 
-@svr.route("/consentEndpoint")
+@svr.route("/api-2")
 def callConsentlEndpoint() :
-    return callExternalEndpoint(CONSENT_CLIENT_ID, CONSENT_SECRET, CONSENT_PATH)
+    return callExternalEndpoint(API_2_CLIENT_ID, API_2_SECRET, API_2_PATH)
 
-def extractTokenAndExpiryFromSession(tokenName) :
+def getTokenAndExpiryFromToken(tokenName) :
     if tokenName in session :
         token = session[tokenName]
         try :
@@ -119,19 +128,17 @@ def callExternalEndpoint(clientid, clientsecret, path) :
     
     if ('access_token' not in session) :
         return 'ERROR: No access token in session'
-
-    accessToken = session['access_token']
     
-    headers = {'Authorization' : 'Bearer {}'.format(accessToken),
+    headers = {'Authorization' : 'Bearer {}'.format(session['access_token']),
             'CLIENT_ID'         : clientid,
             'CLIENT_SECRET'     : clientsecret
     }
-    return makeGETCall(API_DOMAIN, path, headers, {})   
+    return performGET(API_DOMAIN, path, headers, {})   
 
-def makeGETCall(domain, path, headers, params) :
+def performGET(domain, path, headers, params) :
     
     url = urlunsplit(('https', domain, path, urlencode(params), ''))
-    print('Making API call to: ' + url + ' with headers: ' + str(headers))
+    print('Making call to endpoint: ' + url + ' with headers: ' + str(headers))
 
     r = requests.get(url, headers = headers)
 
@@ -142,8 +149,12 @@ def makeGETCall(domain, path, headers, params) :
 
 def createAuthorizePath() :
 
+    # This demo app uses PKCE despite being a 'private' client with a secure backchannel
+    # (i.e can protect a secret). Whilst not strictly necessary for this type of client,
+    # it is recommended practice.
     code_verifier, code_challenge = pkce.generate_pkce_pair()
 
+    # Using the session to store the code verifier probably not advisable in production!
     session['code_verifier'] = code_verifier
 
     params = {
@@ -152,6 +163,7 @@ def createAuthorizePath() :
         'response_type': 'code',
         'redirect_uri': REDIRECT_URI,
         'state': svr.secret_key,
+        # PKCE params 
         'code_challenge' : code_challenge,
         'code_challenge_method' : 'S256'
     }
@@ -159,7 +171,7 @@ def createAuthorizePath() :
 
 def callTokenEndpoint(grant_type) :
     if(grant_type == 'authorization_code') :
-        data = {'code'      : session['code'],  
+        data = {'code'  : session['code'],  
         'client_id'     : CLIENT_ID,
         'client_secret' : CLIENT_SECRET,
         'redirect_uri'  : REDIRECT_URI,
