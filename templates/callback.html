@@ -2,6 +2,7 @@
 <html>
     <head>
         <title>Callback</title>
+        <link rel="stylesheet" href="/static/style.css">
     </head>
     <body>
         <h1>This is the oAuth callback</h1>
@@ -12,4 +13,9 @@
     <form action="/exchange">
         <input type="submit" value="Exchange for token" />
     </form>
+
+    <hr>
+    <p>Note that in standard oAuth client implementations the user would not see this step.</p>
+    <p>There is nothing confidential about the authorization code (it is returned in the unencrypted query params of the callback after all), however it would usually be received and exchanged for a token in one step. This app is being hyper-verbose by displaying it and manually exchanging for a token.</p>
+
 </html>

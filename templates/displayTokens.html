@@ -2,6 +2,7 @@
 <html>
     <head>
         <title>Display tokens</title>
+        <link rel="stylesheet" href="/static/style.css">
     </head>
     <body>
         <h3>Access Token: </h3>
@@ -21,13 +22,6 @@
     <form action="/userinfo">
         <input type="submit" value="Get user info" id='userinfo'/>
     </form>
-    
-    <form action="/api-1">
-        <input type="submit" value="Perform a GET request on API-1 using the access token" id='api-1'/>
-    </form>
-    <form action="/api-2">
-        <input type="submit" value="Perform a GET request on API-2 using the access token" id='api-2'/>
-    </form>
 
     <form action="/refresh">
         <input type="submit" value="Refresh tokens" id='refresh'/>
@@ -35,6 +29,14 @@
 
     <form action="/logout">
         <input type="submit" value="Hard logout" id='logout'/>
+    </form>
+
+    <hr>
+    <form action="/api-1">
+        <input type="submit" value="Perform a GET request on API-1 using the access token" id='api-1'/>
+    </form>
+    <form action="/api-2">
+        <input type="submit" value="Perform a GET request on API-2 using the access token" id='api-2'/>
     </form>
 
     <script>

@@ -1,8 +1,16 @@
-body {
 
+table, th, td {
+    border:1px solid black;
+  }
+
+  th {
+    text-align: left;
+  }
+
+input[type=submit] {
+    font-size:15px; background-color: chartreuse; border-color: black;
 }
 
-button {
-    background-color: red;
-    border: 2px solid #4CAF50
+input[type=submit]:hover {
+    background-color:#4CAF50; color:white
 }

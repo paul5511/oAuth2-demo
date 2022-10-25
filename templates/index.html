@@ -6,11 +6,30 @@
     </head>
     <body>
         <h1>oAuth / OIDC Test App</h1>
-        <h3>Base URL: {{ idpdomain }}<h3></h3>
-        <h3>Client id: {{ clientid }}<h3></h3>
-        <h3>Scope: {{ scope }}<h3>
-        <h3>State: {{ state }}<h3></h3>
+        <p>This app is to demonstrate oAuth2/OIDC.</p>
+        <p>It runs on a web server (a"traditional website") and as such is able to protect a secret. It therefore uses the <a href="https://www.oauth.com/oauth2-servers/server-side-apps/authorization-code/">authorization code</a> grant type.</p>
+        <p>The app also the uses <a href="https://www.oauth.com/oauth2-servers/pkce/">PKCE extension</a> . Whilst not strictly necessary for webserver based apps (since it can protect a secret) it is best practice use for additional security.</p>
+        <p></p>
+        <table>
+            <tr>
+                <th>Base URL</th>
+                <td>{{ idpdomain }}</td>
+            </tr>
+            <tr>
+                <th>Client id</th>
+                <td>{{ clientid }}</td>
+            </tr>
+            <tr>
+                <th>Scope</th>
+                <td>{{ scope }}</td>
+            </tr>
+            <tr>
+                <th>State</th>
+                <td>{{ state }}</td>
+            </tr>
+        </table>
     </body>
+    <p></p>
     
     {% if existingToken == True %}
         <hr>
@@ -28,11 +47,12 @@
     {% else  %}
         <form action="/login" >
             <input type="submit" value="Login"/>
+            <p>The above login button will direct the browser to the authorization endpoint to begin the oAuth process</p>
         </form>
     {% endif %}
     
     <hr>
-    <p>Login will redirect to: {{ loginRedirectUrl }}</p>
+    <p>Authorization URL: {{ loginRedirectUrl }}</p>
 
 
 </html>
